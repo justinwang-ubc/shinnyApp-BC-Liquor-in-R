@@ -7,19 +7,25 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
       sliderInput("priceInput", "Price", 0, 100, c(25, 40), pre = "$"),
-      radioButtons("typeInput", "Product type",
+      checkboxGroupInput("typeInput", "Product type",
                    choices = c("BEER", "REFRESHMENT", "SPIRITS", "WINE"),
                    selected = "WINE"),
-      uiOutput("countryOutput")
+      uiOutput("countryOutput"),
+      checkboxInput("sortPrice", "sort the table by price",FALSE)
     ),
     mainPanel(
       img(src="liquor.png"),
-      tabsetPanel( tabPanel("stat",  
+      tabsetPanel( tabPanel("histogram graph",  
                             h2(textOutput("resultCount")),
                             plotOutput("coolplot"),
-                            br(), br(),
-                           DT::dataTableOutput("results")),
-                   tabPanel("Tab 2", "there!")),
+                            br(), br()
+                           ),
+                   tabPanel("table", 
+                            downloadButton("downloadData","Download Data"),
+                            DT::dataTableOutput("results"))
+                            
+                   
+                   ),
      
       )
   )
@@ -36,10 +42,11 @@ server <- function(input, output) {
              Type == input$typeInput,
              Country == input$countryInput
       )
+    
   })
   output$countryOutput <- renderUI({
     selectInput("countryInput", "Country",
-                sort(unique(bcl$Country)),
+                choices = c("All" = "All",sort(unique(bcl$Country))),
                 selected = "CANADA"
                 )
   })
@@ -58,8 +65,21 @@ server <- function(input, output) {
   })
   
   output$results <- DT::renderDataTable({
-    filtered()
+    data <- filtered()
+    if(input$sortPrice){
+      data <- data %>% arrange(Price)
+    }
+    data
   }) 
+  
+  output$downloadData <- downloadHandler(
+    filename = "data.csv",
+    content = function(file){
+      if (!is.null(filtered())) {
+        write.csv(filtered(), file, row.names = FALSE)
+      }
+    }
+  )
    
   
 }
